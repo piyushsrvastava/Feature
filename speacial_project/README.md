@@ -1,2 +1,0 @@
-# speacial_project
-
