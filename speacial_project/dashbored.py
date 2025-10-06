@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import joblib
@@ -22,8 +23,6 @@ B2B_HEADERS = {
 }
 
 st.set_page_config(page_title="AI Lead Validation & Enrichment", page_icon="🤖", layout="wide")
-
-
 
 
 # -------------- MODEL LOAD --------------
@@ -101,7 +100,7 @@ def map_to_status(r):
     return "unknown"
 
 
-# ---------- SAFE FEATURE ENGINEERING ----------
+# ---------- FEATURE ENGINEERING ----------
 def _safe_series(df, col, fill_value=""):
     return df[col].fillna(fill_value) if col in df.columns else pd.Series([fill_value]*len(df), index=df.index)
 
@@ -148,7 +147,6 @@ def enrich_lead(company, domain):
 
 # ---------- UI ----------
 def main():
-    
 
     st.markdown(
         """
@@ -215,7 +213,51 @@ def main():
         leads.columns = [c.strip() for c in leads.columns]
 
         st.success("✅ Enrichment complete — duplicates removed.")
-        st.dataframe(leads.head())
+
+        # ---------------- SMART FILTERING UI ----------------
+        st.markdown("### 🧠 Filtering")
+        filtered = leads.copy()
+        col1, col2, col3, col4 = st.columns(4)
+
+        # Industry Filter
+        if "industry" in filtered.columns:
+            with col1:
+                industries = ["All"] + sorted(filtered["industry"].dropna().unique().tolist())
+                selected_industry = st.selectbox("🏭 Industry", industries)
+                if selected_industry != "All":
+                    filtered = filtered[filtered["industry"] == selected_industry]
+
+        # Company Size Filter
+        if "employee_count" in filtered.columns:
+            with col2:
+                size_filter = st.selectbox("👥 Company Size", ["All", "<50", "50-250", "250-1000", "1000+"])
+                if size_filter != "All":
+                    if size_filter == "<50":
+                        filtered = filtered[filtered["employee_count"] < 50]
+                    elif size_filter == "50-250":
+                        filtered = filtered[(filtered["employee_count"] >= 50) & (filtered["employee_count"] < 250)]
+                    elif size_filter == "250-1000":
+                        filtered = filtered[(filtered["employee_count"] >= 250) & (filtered["employee_count"] < 1000)]
+                    elif size_filter == "1000+":
+                        filtered = filtered[filtered["employee_count"] >= 1000]
+
+        # Funding Stage Filter
+        if "category" in filtered.columns:
+            with col3:
+                stages = ["All"] + sorted(filtered["category"].dropna().unique().tolist())
+                selected_stage = st.selectbox("💰 Funding Stage / Category", stages)
+                if selected_stage != "All":
+                    filtered = filtered[filtered["category"] == selected_stage]
+
+        # Geography Filter
+        if "location" in filtered.columns:
+            with col4:
+                locations = ["All"] + sorted(filtered["location"].dropna().unique().tolist())
+                selected_location = st.selectbox("🌍 Geography / Location", locations)
+                if selected_location != "All":
+                    filtered = filtered[filtered["location"] == selected_location]
+
+        st.dataframe(filtered.reset_index(drop=True))
 
     # ---------------- SCORING ----------------
     with tab3:
